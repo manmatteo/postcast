@@ -1,11 +1,18 @@
 import requests
+import argparse
 from bs4 import BeautifulSoup
 from dateutil.parser import parse, parserinfo
 
+parser = argparse.ArgumentParser(description="Genera un feed RSS per gli episodi più recenti dei podcast de Il Post")
+parser.add_argument("user")
+parser.add_argument("password")
+parser.add_argument("podcast")
+args=parser.parse_args()
+
 wp_login = 'https://www.ilpost.it/wp-login.php'
-podcasts = 'https://www.ilpost.it/podcasts/morning'
-username = 'Inserire Username'
-password = 'Inserire Password'
+podcasts = 'https://www.ilpost.it/podcasts/' + args.podcast
+username = args.user
+password = args.password
 podcast_head = '<?xml version="1.0" encoding="UTF-8"?> <rss xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd" version="2.0"> <channel> </channel> </rss>'
 
 class ItalianParserInfo(parserinfo):
