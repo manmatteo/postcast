@@ -15,7 +15,7 @@ jobs:
         run: sudo apt install python3-bs4 python3-dateutil
       - name : Set up SSH env
         run: |
-          mkdir .ssh
+          mkdir -p ~/.ssh
           ssh-keyscan ${{ secrets.SERVER_URL }} > ~/.ssh/known_hosts
       - name: Get feeds and push to server
         run: |
