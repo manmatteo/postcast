@@ -1,0 +1,24 @@
+name: Generate feed and update server
+
+on:
+  schedule:
+    - cron:  '0/5 8-9 * * MON-FRI'
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      - uses: actions/checkout@v2
+      - shell: bash
+        env:
+          USERNAME: ${{ secrets.USERNAME }}
+          PASSWORD: ${{ secrets.PASSWORD }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+          SERVER_PASSWORD: ${{ secrets.SERVER_PASSWORD }}
+          SERVER_URL: ${{ secrets.SERVER_URL }}
+      - name: Get feeds
+        run: |
+          python3 get_podcasts.py $USERNAME $PASSWORD morning > morning.xml
+          python3 get_podcasts.py $USERNAME $PASSWORD tienimi-bordone > bordone.xml
+          sshpass -p $SERVER_PASSWORD scp *.xml $SERVER_USER@$SERVER_URL:public_html
