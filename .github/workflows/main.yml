@@ -14,14 +14,7 @@ jobs:
       - name : Install dependencies
         run: sudo apt install python3-bs4 python3-dateutil
       - name: Get feeds and push to server
-        shell: bash
-        env:
-          USERNAME: ${{ secrets.USERNAME }}
-          PASSWORD: ${{ secrets.PASSWORD }}
-          SERVER_USER: ${{ secrets.SERVER_USER }}
-          SERVER_PASSWORD: ${{ secrets.SERVER_PASSWORD }}
-          SERVER_URL: ${{ secrets.SERVER_URL }}
         run: |
-          python3 get_podcasts.py $USERNAME $PASSWORD morning > morning.xml
-          python3 get_podcasts.py $USERNAME $PASSWORD tienimi-bordone > bordone.xml
-          sshpass -p $SERVER_PASSWORD scp *.xml $SERVER_USER@$SERVER_URL:public_html
+          python3 get_podcasts.py  ${{ secrets.USERNAME }} ${{ secrets.PASSWORD }} morning > morning.xml
+          python3 get_podcasts.py  ${{ secrets.USERNAME }} ${{ secrets.PASSWORD }} tienimi-bordone > bordone.xml
+          sshpass -p ${{ secrets.SERVER_PASSWORD }} scp *.xml ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_URL }}:public_html
