@@ -10,7 +10,8 @@ parser.add_argument("podcast")
 args=parser.parse_args()
 
 wp_login = 'https://www.ilpost.it/wp-login.php'
-podcasts = 'https://www.ilpost.it/podcasts/' + args.podcast
+podcast_home = 'https://www.ilpost.it/podcasts/' + args.podcast
+podcast_pages = [podcast_home]
 username = args.user
 password = args.password
 podcast_head = '<?xml version="1.0" encoding="UTF-8"?> <rss xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd" version="2.0"> <channel> </channel> </rss>'
@@ -22,10 +23,10 @@ with requests.Session() as s:
     headers1 = { 'Cookie':'wordpress_test_cookie=WP Cookie check' }
     datas={
         'log':username, 'pwd':password, 'wp-submit':'Log In',
-        'redirect_to':podcasts, 'testcookie':'1'
+        'redirect_to':podcast_home, 'testcookie':'1'
     }
     s.post(wp_login, headers=headers1, data=datas)
-    resp = s.get(podcasts)
+    resp = s.get(podcast_home)
     source_soup = BeautifulSoup(resp.text, 'html.parser')
     out_soup = BeautifulSoup(podcast_head, 'xml')
 
@@ -46,21 +47,26 @@ with requests.Session() as s:
     channel_tag.append(image_tag)
     channel_tag.append(description_tag)
 
-    for link in source_soup.find_all('a'):
-        if (link.get('class') == ['play']):
-            new_episode_tag = out_soup.new_tag("item")
-            channel_tag.append(new_episode_tag)
-            new_episode_title_tag = out_soup.new_tag("title")
-            new_episode_title_tag.string = link.get('data-title')
-            new_episode_tag.append(new_episode_title_tag)
-            episode_link = link.get('data-file')
-            new_episode_enclosure_tag = out_soup.new_tag("enclosure",url=episode_link)
-            new_episode_tag.append(new_episode_enclosure_tag)
-
-            new_episode_date = link.get('data-desc')[:-8]
-            parsed_date = parse(new_episode_date,parserinfo=ItalianParserInfo())
-            new_episode_date_tag = out_soup.new_tag("pubDate")
-            new_episode_date_tag.string = parsed_date.strftime('%a, %-d %b %Y')
-            new_episode_tag.append(new_episode_date_tag)
-
+    for podcast_page in podcast_pages:
+        resp = s.get(podcast_page)
+        source_soup = BeautifulSoup(resp.text, 'html.parser')
+        for link in source_soup.find_all('a'):
+            if (link.get('class') == ['next', 'page-numbers']):
+                podcast_pages.append(link.get('href'))
+            if (link.get('class') == ['play']):
+                new_episode_tag = out_soup.new_tag("item")
+                channel_tag.append(new_episode_tag)
+                new_episode_title_tag = out_soup.new_tag("title")
+                new_episode_title_tag.string = link.get('data-title')
+                new_episode_tag.append(new_episode_title_tag)
+                episode_link = link.get('data-file')
+                new_episode_enclosure_tag = out_soup.new_tag("enclosure",url=episode_link)
+                new_episode_tag.append(new_episode_enclosure_tag)
+    
+                new_episode_date = link.get('data-desc')[:-8]
+                parsed_date = parse(new_episode_date,parserinfo=ItalianParserInfo())
+                new_episode_date_tag = out_soup.new_tag("pubDate")
+                new_episode_date_tag.string = parsed_date.strftime('%a, %-d %b %Y')
+                new_episode_tag.append(new_episode_date_tag)
+    
     print(out_soup.prettify())
