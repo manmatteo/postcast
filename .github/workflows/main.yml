@@ -12,7 +12,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
       - name : Install dependencies
-        run: sudo apt install python3-bs4
+        run: sudo apt install python3-bs4 python3-dateutil
       - name: Get feeds and push to server
         shell: bash
         env:
