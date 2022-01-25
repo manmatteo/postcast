@@ -24,4 +24,5 @@ jobs:
           python3 get_podcasts.py  ${{ secrets.USERNAME }} ${{ secrets.PASSWORD }} morning > morning.xml
           python3 get_podcasts.py  ${{ secrets.USERNAME }} ${{ secrets.PASSWORD }} politics > politics.xml
           python3 get_podcasts.py  ${{ secrets.USERNAME }} ${{ secrets.PASSWORD }} tienimi-bordone > bordone.xml
+          python3 get_podcasts.py  ${{ secrets.USERNAME }} ${{ secrets.PASSWORD }} il-podcast-del-post-su-sanremo > sanremo.xml
           sshpass -p ${{ secrets.SERVER_PASSWORD }} scp *.xml ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_URL }}:public_html
