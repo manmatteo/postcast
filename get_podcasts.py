@@ -59,7 +59,7 @@ with requests.Session() as s:
                 new_episode_title_tag = out_soup.new_tag("title")
                 new_episode_title_tag.string = link.get('data-title')
                 new_episode_tag.append(new_episode_title_tag)
-                episode_link = link.get('data-file')
+                episode_link = link.get('data-url')
                 new_episode_enclosure_tag = out_soup.new_tag("enclosure",url=episode_link)
                 new_episode_tag.append(new_episode_enclosure_tag)
     
