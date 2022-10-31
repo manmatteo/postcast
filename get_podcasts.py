@@ -52,7 +52,7 @@ with requests.Session() as s:
         source_soup = BeautifulSoup(resp.text, 'html.parser')
         for link in source_soup.find_all('a'):
             if (link.get('class') == ['next', 'page-numbers']):
-                podcast_pages.append(link.get('href'))
+                podcast_pages.append('https://www.ilpost.it' + link.get('href'))
             if (link.get('class') == ['play'] and link.get("data-title")):
                 new_episode_tag = out_soup.new_tag("item")
                 channel_tag.append(new_episode_tag)
