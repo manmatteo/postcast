@@ -10,7 +10,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -22,12 +21,31 @@ jobs:
         run: |
           mkdir -p ~/.ssh
           ssh-keyscan ${{ secrets.SERVER_URL }} > ~/.ssh/known_hosts
-      - name: Get feeds and push to server
+      - name: Get feeds
         run: |
-          python3 get_podcasts.py  ${{ secrets.USERNAME }} ${{ secrets.PASSWORD }} morning > morning.xml
-          python3 get_podcasts.py  ${{ secrets.USERNAME }} ${{ secrets.PASSWORD }} politics > politics.xml
-          python3 get_podcasts.py  ${{ secrets.USERNAME }} ${{ secrets.PASSWORD }} tienimi-bordone > bordone.xml
-          python3 get_podcasts.py  ${{ secrets.USERNAME }} ${{ secrets.PASSWORD }} podcast-eurovision > eurovision.xml
-          python3 get_podcasts.py  ${{ secrets.USERNAME }} ${{ secrets.PASSWORD }} il-podcast-del-post-su-sanremo > sanremo.xml
-          python3 get_podcasts.py  ${{ secrets.USERNAME }} ${{ secrets.PASSWORD }} ci-vuole-una-scienza > scienza.xml
-          sshpass -p ${{ secrets.SERVER_PASSWORD }} scp *.xml ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_URL }}:public_html
+          mkdir feeds
+          python3 get_podcasts.py  ${{ secrets.USERNAME }} ${{ secrets.PASSWORD }} morning > feeds/morning.xml
+          python3 get_podcasts.py  ${{ secrets.USERNAME }} ${{ secrets.PASSWORD }} politics > feeds/politics.xml
+          python3 get_podcasts.py  ${{ secrets.USERNAME }} ${{ secrets.PASSWORD }} tienimi-bordone > feeds/bordone.xml
+          python3 get_podcasts.py  ${{ secrets.USERNAME }} ${{ secrets.PASSWORD }} podcast-eurovision > feeds/eurovision.xml
+          python3 get_podcasts.py  ${{ secrets.USERNAME }} ${{ secrets.PASSWORD }} il-podcast-del-post-su-sanremo > feeds/sanremo.xml
+          python3 get_podcasts.py  ${{ secrets.USERNAME }} ${{ secrets.PASSWORD }} ci-vuole-una-scienza > feeds/scienza.xml
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v1
+        with:
+          path: ./feeds
+  deploy:
+    needs: build
+    permissions:
+      pages: write      # to deploy to Pages
+      id-token: write   # to verify the deployment originates from an appropriate source
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v2
+
+
