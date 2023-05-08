@@ -28,6 +28,7 @@ jobs:
           python3 get_podcasts.py  ${{ secrets.USERNAME }} ${{ secrets.PASSWORD }} politics > feeds/politics.xml
           python3 get_podcasts.py  ${{ secrets.USERNAME }} ${{ secrets.PASSWORD }} tienimi-bordone > feeds/bordone.xml
           python3 get_podcasts.py  ${{ secrets.USERNAME }} ${{ secrets.PASSWORD }} podcast-eurovision > feeds/eurovision.xml
+          python3 get_podcasts.py  ${{ secrets.USERNAME }} ${{ secrets.PASSWORD }} tienimi_morning > tienimi_morning.xml
           python3 get_podcasts.py  ${{ secrets.USERNAME }} ${{ secrets.PASSWORD }} il-podcast-del-post-su-sanremo > feeds/sanremo.xml
           python3 get_podcasts.py  ${{ secrets.USERNAME }} ${{ secrets.PASSWORD }} ci-vuole-una-scienza > feeds/scienza.xml
       - name: Upload artifact
