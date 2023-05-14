@@ -1,11 +1,11 @@
 name: Generate feed and update server
 
 on:
-    # schedule:
-    #    - cron:  '0 7 * * MON-FRI'
-    #    - cron:  '45 6 * * MON-FRI'
-    #    - cron:  '15 5 * * MON-FRI'
-    #    - cron:  '30 9 * * THU'
+  schedule:
+     - cron:  '0 7 * * MON-FRI'
+     - cron:  '45 6 * * MON-FRI'
+     - cron:  '15 5 * * MON-FRI'
+     - cron:  '30 9 * * THU'
   workflow_dispatch:
 jobs:
   build:
@@ -14,13 +14,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
       - name : Install dependencies
-        run: |
-          sudo apt update
-          sudo apt install python3-bs4 python3-dateutil
-      - name : Set up SSH env
-        run: |
-          mkdir -p ~/.ssh
-          ssh-keyscan ${{ secrets.SERVER_URL }} > ~/.ssh/known_hosts
+        uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: python3-bs4 python3-dateutil
+          version: 1.0
       - name: Get feeds
         run: |
           python3 get_podcasts.py --download-all ${{ secrets.USERNAME }} ${{ secrets.PASSWORD }}
