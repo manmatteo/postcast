@@ -1,6 +1,7 @@
 import requests
 import argparse
 from bs4 import BeautifulSoup
+from bs4 import CData
 from dateutil.parser import parse, parserinfo
 
 base_url = 'https://www.ilpost.it/'
@@ -28,10 +29,13 @@ def build_feed(podcast_name, data):
     description_tag.string = podcast_info_dict['description']
     language_tag = out_soup.new_tag("language")
     language_tag.string = "it"
+    link_tag = out_soup.new_tag("link")
+    link_tag.string = base_url + 'podcasts/' + podcast_name
     channel_tag.append(title_tag)
     channel_tag.append(image_tag)
     channel_tag.append(description_tag)
     channel_tag.append(language_tag)
+    channel_tag.append(link_tag)
 
     for episode in data['postcastList'] :
         new_episode_tag = out_soup.new_tag("item")
@@ -39,8 +43,7 @@ def build_feed(podcast_name, data):
         new_episode_title_tag = out_soup.new_tag("title")
         new_episode_title_tag.string = episode['title']
         new_episode_tag.append(new_episode_title_tag)
-        episode_link = episode['podcast_raw_url']
-        new_episode_enclosure_tag = out_soup.new_tag("enclosure",url=episode_link)
+        new_episode_enclosure_tag = out_soup.new_tag("enclosure",url=episode['podcast_raw_url'], type='audio/mpeg')
         new_episode_tag.append(new_episode_enclosure_tag)
     
         new_episode_date = episode['date'][:-8]
@@ -48,6 +51,17 @@ def build_feed(podcast_name, data):
         new_episode_date_tag = out_soup.new_tag("pubDate")
         new_episode_date_tag.string = parsed_date.strftime('%a, %-d %b %Y')
         new_episode_tag.append(new_episode_date_tag)
+
+        new_episode_link_tag = out_soup.new_tag("link")
+        new_episode_link_tag.string = episode['url']
+        new_episode_tag.append(new_episode_link_tag)
+        new_episode_duration_tag = out_soup.new_tag("itunes:duration")
+        new_episode_duration_tag.string = str(episode['minutes']*60)
+        new_episode_tag.append(new_episode_duration_tag)
+        new_episode_description_tag = out_soup.new_tag("description")
+        desc_data = CData(episode['content'])
+        new_episode_description_tag.string = desc_data
+        new_episode_tag.append(new_episode_description_tag)
     return out_soup
 
 def wplogin(session, username, password):
