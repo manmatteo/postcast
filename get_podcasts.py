@@ -6,13 +6,16 @@ from dateutil.parser import parse, parserinfo
 parser = argparse.ArgumentParser(description="Genera un feed RSS per gli episodi più recenti dei podcast de Il Post")
 parser.add_argument("user")
 parser.add_argument("password")
-parser.add_argument("podcast", nargs='+')
+target = parser.add_mutually_exclusive_group(required=True)
+target.add_argument("--podcast", nargs='+', default = [])
+target.add_argument("--download-all", action='store_true')
 args=parser.parse_args()
 
 base_url = 'https://www.ilpost.it/'
 wp_ajax = base_url + 'wp-admin/admin-ajax.php'
 wp_login = base_url + 'wp-login.php'
-podcast_ids = {'morning' : 227474}
+# TODO: Automatically retrieve public podcast IDs
+podcast_ids = {'morning' : 227474, 'tienimi-bordone' : 227193, 'politics' : 229701, 'podcast-eurovision' : 227496, 'tienimi_morning' : 231758, 'il-podcast-del-post-su-sanremo' : 227196}
 username = args.user
 password = args.password
 
@@ -65,8 +68,8 @@ with requests.Session() as s :
         'redirect_to':base_url, 'testcookie':'1'
     }
     s.post(wp_login, headers=headers_login, data=login_data)
-    
-    for current_podcast in args.podcast:
+    target_podcasts = podcast_ids.keys() if args.download_all else args.podcast
+    for current_podcast in target_podcasts:
         podcast_home = base_url + 'podcasts/' + current_podcast
         headers_ajax = {'User-Agent' : 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/113.0', 'Accept' : 'application/json, text/javascript, */*; q=0.01', 'Accept-Language' : 'en-US,en;q=0.5', 'Accept-Encoding' : 'gzip, deflate, br', 'Content-Type' : 'application/x-www-form-urlencoded; charset=UTF-8', 'X-Requested-With' : 'XMLHttpRequest', 'Origin' : base_url, 'Connection' : 'keep-alive', 'Referer' : podcast_home, 'Sec-Fetch-Dest' : 'empty', 'Sec-Fetch-Mode' : 'cors', 'Sec-Fetch-Site' : 'same-origin', 'TE' : 'trailers'}
         data_ajax = {'action':'checkpodcast','cookie':'wordpress_logged_in_5750c61ce9761193028d298b19b5c708','post_id':0, 'podcast_id':podcast_ids[current_podcast]}
