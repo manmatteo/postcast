@@ -23,6 +23,10 @@ def build_feed(podcast_name, data):
     channel_tag = out_soup.rss.channel
     title_tag = out_soup.new_tag("title")
     title_tag.string = podcast_info_dict['title']
+    author_tag = out_soup.new_tag("author")
+    author_tag.string = podcast_info_dict['author']
+    explicit_tag = out_soup.new_tag("itunes:explicit")
+    explicit_tag.string = "false"
     podcast_picture = podcast_info_dict['image']
     image_tag = out_soup.new_tag("itunes:image", href=podcast_picture)
     description_tag = out_soup.new_tag("description")
@@ -36,6 +40,8 @@ def build_feed(podcast_name, data):
     channel_tag.append(description_tag)
     channel_tag.append(language_tag)
     channel_tag.append(link_tag)
+    channel_tag.append(author_tag)
+    channel_tag.append(explicit_tag)
 
     for episode in data['postcastList'] :
         new_episode_tag = out_soup.new_tag("item")
