@@ -23,7 +23,7 @@ def build_feed(podcast_name, data):
     channel_tag = out_soup.rss.channel
     title_tag = out_soup.new_tag("title")
     title_tag.string = podcast_info_dict['title']
-    author_tag = out_soup.new_tag("author")
+    author_tag = out_soup.new_tag("itunes:author")
     author_tag.string = podcast_info_dict['author']
     explicit_tag = out_soup.new_tag("itunes:explicit")
     explicit_tag.string = "false"
