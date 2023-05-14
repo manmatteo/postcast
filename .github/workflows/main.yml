@@ -23,7 +23,7 @@ jobs:
           ssh-keyscan ${{ secrets.SERVER_URL }} > ~/.ssh/known_hosts
       - name: Get feeds
         run: |
-          python3 get_podcasts.py  ${{ secrets.USERNAME }} ${{ secrets.PASSWORD }} morning
+          python3 get_podcasts.py --download-all ${{ secrets.USERNAME }} ${{ secrets.PASSWORD }}
           mkdir feeds
           mv *.xml feeds/
       - name: Upload artifact
@@ -43,5 +43,3 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v2
-
-
