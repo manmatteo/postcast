@@ -6,6 +6,20 @@ from dateutil.parser import parse, parserinfo
 
 base_url = 'https://www.ilpost.it/'
 podcast_ids = {'morning' : 227474, 'tienimi-bordone' : 227193, 'politics' : 229701, 'podcast-eurovision' : 227496, 'tienimi_morning' : 231758, 'il-podcast-del-post-su-sanremo' : 227196}
+static_podcast_info_dict = {
+    'morning' :
+    {'title': 'Francesco Costa', 'author' : 'Francesco Costa', 'image': 'https://www.ilpost.it/wp-content/uploads/2021/05/evening-1.png', 'description': 'Comincia la giornata con la rassegna stampa di Francesco Costa.'},
+    'tienimi-bordone' :
+    {'title': 'Tienimi Bordone', 'author' : 'Matteo Bordone', 'image': 'https://www.ilpost.it/wp-content/uploads/2021/04/app-tb.jpg', 'description': 'Il podcast quotidiano di Matteo Bordone. Tutto quello che non sapevi di voler sapere.'},
+    'politics' :
+    {'title': 'Politics', 'author' : 'Marco Simoni, Chiara Albanese', 'image': 'https://www.ilpost.it/wp-content/uploads/2022/01/politics-1x1-1.jpg.webp', 'description': 'La politica italiana spiegata bene, ogni giovedì. Con Marco Simoni e Chiara Albanese.'},
+    'podcast-eurovision' :
+    {'title': 'Un podcast sull\'Eurovision', 'author' : 'Giulia Balducci, Matteo Bordone, Luca Misculin, Stefano Vizio', 'image': 'https://www.ilpost.it/wp-content/uploads/2023/05/05/1683279303-copertina500x500.jpg', 'description': 'Inesorabile. Con Matteo Bordone, Giulia Balducci, Stefano Vizio e Luca Misculin.'},
+    'tienimi_morning' :
+    {'title': 'Tienimi Morning', 'author' : 'Matteo Bordone e Francesco Costa', 'image': 'https://www.ilpost.it/wp-content/uploads/2022/09/25/1664102867-tm.png', 'description': 'Matteo Bordone e Francesco Costa, insieme, dal vivo.'},
+    'il-podcast-del-post-su-sanremo' :
+    {'title': 'Un podcast su Sanremo', 'author' : 'Giulia Balducci, Matteo Bordone, Luca Misculin, Stefano Vizio', 'image': 'https://www.ilpost.it/wp-content/uploads/2023/02/03/1675414490-copertina-podcast500x500.jpg', 'description': 'Immancabile. Con Matteo Bordone, Giulia Balducci, Stefano Vizio e Luca Misculin.'}
+}
 
 class ItalianParserInfo(parserinfo):
     MONTHS = [('Gen', 'January'), ('Feb', 'February'), ('Mar', 'March'), ('Apr', 'April'), ('Mag', 'May'), ('Giu', 'June'), ('Lug', 'July'), ('Ago', 'August'), ('Set', 'Sett', 'September'), ('Ott', 'October'), ('Nov', 'November'), ('Dic', 'December')]
@@ -19,7 +33,8 @@ def build_feed(podcast_name, data):
     if data['msg'] != 'OK' :
         raise Exception('Ajax server answered' + data['msg'] + 'on podcast' + podcast_name)
     out_soup = BeautifulSoup(podcast_head, 'xml')
-    podcast_info_dict = data['postcastList'][0]['podcast'] #['author', 'chronological', 'count', 'cyclicality', 'description', 'free', 'gift', 'gift_all', 'id', 'image', 'imageweb', 'object', 'order', 'pushnotification', 'robot', 'title', 'type', 'url']
+    # podcast_info_dict = data['postcastList'][0]['podcast'] #['author', 'chronological', 'count', 'cyclicality', 'description', 'free', 'gift', 'gift_all', 'id', 'image', 'imageweb', 'object', 'order', 'pushnotification', 'robot', 'title', 'type', 'url']
+    podcast_info_dict = static_podcast_info_dict[podcast_name]
     channel_tag = out_soup.rss.channel
     title_tag = out_soup.new_tag("title")
     title_tag.string = podcast_info_dict['title']
@@ -64,10 +79,11 @@ def build_feed(podcast_name, data):
         new_episode_duration_tag = out_soup.new_tag("itunes:duration")
         new_episode_duration_tag.string = str(episode['minutes']*60)
         new_episode_tag.append(new_episode_duration_tag)
-        new_episode_description_tag = out_soup.new_tag("description")
-        desc_data = CData(episode['content'])
-        new_episode_description_tag.string = desc_data
-        new_episode_tag.append(new_episode_description_tag)
+        # Data disappeared from api answer
+        # new_episode_description_tag = out_soup.new_tag("description")
+        # desc_data = CData(episode['content'])
+        # new_episode_description_tag.string = desc_data
+        # new_episode_tag.append(new_episode_description_tag)
     return out_soup
 
 def wplogin(session, username, password):
