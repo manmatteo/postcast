@@ -8,7 +8,7 @@ base_url = 'https://www.ilpost.it/'
 podcast_ids = {'morning' : 227474, 'tienimi-bordone' : 227193, 'politics' : 229701, 'podcast-eurovision' : 227496, 'tienimi_morning' : 231758, 'il-podcast-del-post-su-sanremo' : 227196}
 static_podcast_info_dict = {
     'morning' :
-    {'title': 'Francesco Costa', 'author' : 'Francesco Costa', 'image': 'https://www.ilpost.it/wp-content/uploads/2021/05/evening-1.png', 'description': 'Comincia la giornata con la rassegna stampa di Francesco Costa.'},
+    {'title': 'Morning', 'author' : 'Francesco Costa', 'image': 'https://www.ilpost.it/wp-content/uploads/2021/05/evening-1.png', 'description': 'Comincia la giornata con la rassegna stampa di Francesco Costa.'},
     'tienimi-bordone' :
     {'title': 'Tienimi Bordone', 'author' : 'Matteo Bordone', 'image': 'https://www.ilpost.it/wp-content/uploads/2021/04/app-tb.jpg', 'description': 'Il podcast quotidiano di Matteo Bordone. Tutto quello che non sapevi di voler sapere.'},
     'politics' :
