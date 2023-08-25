@@ -2,10 +2,8 @@ name: Generate feed and update server
 
 on:
   schedule:
-     - cron:  '15 8 * * MON-FRI'
-     - cron:  '55 7 * * MON-FRI'
-     - cron:  '15 5 * * MON-FRI'
-     - cron:  '30 10 * * THU'
+     - cron:  '10 9 * * MON-SAT'
+     - cron:  '30 8 * * MON-FRI'
   workflow_dispatch:
 jobs:
   build:
