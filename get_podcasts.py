@@ -5,7 +5,7 @@ from bs4 import CData
 from dateutil.parser import parse, parserinfo
 
 base_url = 'https://www.ilpost.it/'
-podcast_ids = {'morning' : 227474, 'tienimi-bordone' : 227193, 'politics' : 229701, 'podcast-eurovision' : 227496, 'tienimi_morning' : 231758, 'il-podcast-del-post-su-sanremo' : 227196}
+podcast_ids = {'per-fare-il-post' : 234755, 'morning' : 227474, 'tienimi-bordone' : 227193, 'politics' : 229701, 'podcast-eurovision' : 227496, 'tienimi_morning' : 231758, 'il-podcast-del-post-su-sanremo' : 227196}
 static_podcast_info_dict = {
     'morning' :
     {'title': 'Morning', 'author' : 'Francesco Costa', 'image': 'https://www.ilpost.it/wp-content/uploads/2021/05/evening-1.png', 'description': 'Comincia la giornata con la rassegna stampa di Francesco Costa.'},
