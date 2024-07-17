@@ -5,7 +5,7 @@ from bs4 import CData
 from dateutil.parser import parse, parserinfo
 
 base_url = 'https://www.ilpost.it/'
-podcast_ids = {'per-fare-il-post' : 234755, 'morning' : 227474, 'tienimi-bordone' : 227193, 'politics' : 229701, 'podcast-eurovision' : 227496, 'tienimi_morning' : 231758, 'il-podcast-del-post-su-sanremo' : 227196}
+podcast_ids = {'per-fare-il-post' : 234755, 'morning' : 227474, 'tienimi-bordone' : 227193, 'politics' : 229701, 'podcast-eurovision' : 227496, 'tienimi_morning' : 231758, 'il-podcast-del-post-su-sanremo' : 227196, 'tienimi-parigi' : 237733, 'altre-indagini':236670}
 static_podcast_info_dict = {
     'per-fare-il-post' :
     {'title': 'Per fare il post', 'author' : 'Redazione de Il Post', 'image':'https://www.ilpost.it/wp-content/uploads/2023/09/19/1695103517-copertina676x355-autori.jpg?x84864', 'description' : 'Un podcast per conoscere il giornale, e la sua redazione.'},
@@ -20,7 +20,11 @@ static_podcast_info_dict = {
     'tienimi_morning' :
     {'title': 'Tienimi Morning', 'author' : 'Matteo Bordone e Francesco Costa', 'image': 'https://www.ilpost.it/wp-content/uploads/2022/09/25/1664102867-tm.png', 'description': 'Matteo Bordone e Francesco Costa, insieme, dal vivo.'},
     'il-podcast-del-post-su-sanremo' :
-    {'title': 'Un podcast su Sanremo', 'author' : 'Giulia Balducci, Matteo Bordone, Luca Misculin, Stefano Vizio', 'image': 'https://www.ilpost.it/wp-content/uploads/2023/02/03/1675414490-copertina-podcast500x500.jpg', 'description': 'Immancabile. Con Matteo Bordone, Giulia Balducci, Stefano Vizio e Luca Misculin.'}
+    {'title': 'Un podcast su Sanremo', 'author' : 'Giulia Balducci, Matteo Bordone, Luca Misculin, Stefano Vizio', 'image': 'https://www.ilpost.it/wp-content/uploads/2023/02/03/1675414490-copertina-podcast500x500.jpg', 'description': 'Immancabile. Con Matteo Bordone, Giulia Balducci, Stefano Vizio e Luca Misculin.'},
+    'tienimi-parigi':
+    {'title': 'Tienimi Parigi', 'author' : 'Matteo Bordone', 'image': 'https://www.ilpost.it/wp-content/uploads/2024/07/17/1721194784-Tienimi_parigi.jpg', 'description': 'Tienimi Parigi è il podcast quotidiano di Matteo Bordone dedicato alle Olimpiadi di Parigi 2024: esce tutti i giorni, dal 26 luglio al 12 agosto'},
+    'altre-indagini':
+    {'title': 'Altre Indagini', 'author' : 'Stefano Nazzi', 'image': 'https://www.ilpost.it/wp-content/uploads/2024/04/09/1712669037-altre-Indagini-logo-1.png', 'description': 'Le puntate speciali di Indagini che raccontano le grandi vicende della storia italiana, di Stefano Nazzi.'}
 }
 
 class ItalianParserInfo(parserinfo):
