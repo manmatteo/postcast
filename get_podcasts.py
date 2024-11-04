@@ -30,10 +30,11 @@ static_podcast_info_dict = {
 class ItalianParserInfo(parserinfo):
     MONTHS = [('Gen', 'January'), ('Feb', 'February'), ('Mar', 'March'), ('Apr', 'April'), ('Mag', 'May'), ('Giu', 'June'), ('Lug', 'July'), ('Ago', 'August'), ('Set', 'Sett', 'September'), ('Ott', 'October'), ('Nov', 'November'), ('Dic', 'December')]
 
-def build_feed(podcast_name, data):
+def build_feed(logged_session,podcast_name, data):
     """
     data is a dict with keys msg, subscriber, userType, onlySubscriber, postcastList
     postcastList is a list of dict with dict_keys(['content', 'date', 'description', 'free', 'hash', 'id', 'image', 'milliseconds', 'minutes', 'object', 'old_podcast_id', 'old_timestamp', 'podcast', 'podcast_id', 'podcast_raw_url', 'range', 'timestamp', 'title', 'type', 'url']
+    the logged_session is used further down to get_episode_content
     """
     podcast_head = '<?xml version="1.0" encoding="UTF-8"?> <rss xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd" version="2.0"> <channel> <itunes:block>yes</itunes:block> <googleplay:block>yes</googleplay:block> </channel> </rss>'
     if data['msg'] != 'OK' :
@@ -65,6 +66,7 @@ def build_feed(podcast_name, data):
     channel_tag.append(explicit_tag)
 
     for episode in data['postcastList'] :
+        episode_content = get_episode_content(logged_session, episode['id'])
         new_episode_tag = out_soup.new_tag("item")
         channel_tag.append(new_episode_tag)
         new_episode_title_tag = out_soup.new_tag("title")
@@ -90,6 +92,13 @@ def build_feed(podcast_name, data):
         # desc_data = CData(episode['content'])
         # new_episode_description_tag.string = desc_data
         # new_episode_tag.append(new_episode_description_tag)
+        ## description is now in content_html of episode content
+        if 'content_html' in episode_content :
+            new_episode_description_tag = out_soup.new_tag("description")
+            new_episode_description_tag.string = CData(episode_content['content_html'])
+            new_episode_tag.append(new_episode_description_tag)
+        else:
+            print('No content_html in episode ' + episode['title'] + ' of podcast ' + podcast_name)
     return out_soup
 
 def wplogin(session, username, password):
@@ -110,6 +119,23 @@ def get_podcast_data(logged_session, current_podcast) :
     resp = logged_session.post(wp_ajax, headers=headers_ajax, data=data_ajax)
     return resp.json()['data']
 
+def get_episode_content(logged_session, episode_id) :
+    base_url = 'https://api-prod.ilpost.it/content/v1/contents/the_content?id='
+    episode_url = base_url + str(episode_id)
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:131.0) Gecko/20100101 Firefox/131.0',
+        'Accept': '*/*',
+        'Accept-Language': 'it-IT,it;q=0.8,en-US;q=0.5,en;q=0.3',
+        'Accept-Encoding': 'gzip, deflate, br, zstd',
+        'Referer': 'https://www.ilpost.it/',
+        'Content-Type': 'application/json',
+        'apikey': 'r309t30ti309ghj3g3tu39t8390t380',
+        'Origin': 'https://www.ilpost.it',
+        'DNT': '1',
+        'Connection': 'keep-alive',
+    }
+    resp = logged_session.get(episode_url, headers=headers)
+    return resp.json()['data']['the_content']['data']
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Genera un feed RSS per gli episodi più recenti dei podcast de Il Post")
     parser.add_argument("user")
@@ -128,6 +154,6 @@ if __name__ == "__main__":
         target_podcasts = podcast_ids.keys() if args.download_all else args.podcast
         for current_podcast in target_podcasts:
             podcast_data = get_podcast_data(logged_session,current_podcast)
-            out_feed = build_feed(current_podcast, podcast_data)
+            out_feed = build_feed(logged_session,current_podcast, podcast_data)
             with open(current_podcast + '.xml', 'w') as out_file:
                 out_file.write(out_feed.prettify())
