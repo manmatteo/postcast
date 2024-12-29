@@ -5,7 +5,7 @@ from bs4 import CData
 from dateutil.parser import parse, parserinfo
 
 base_url = 'https://www.ilpost.it/'
-podcast_ids = {'per-fare-il-post' : 234755, 'morning' : 227474, 'tienimi-bordone' : 227193, 'politics' : 229701, 'podcast-eurovision' : 227496, 'tienimi_morning' : 231758, 'il-podcast-del-post-su-sanremo' : 227196, 'tienimi-parigi' : 237733, 'altre-indagini':236670}
+podcast_ids = {'per-fare-il-post' : 234755, 'morning' : 227474, 'tienimi-bordone' : 227193, 'politics' : 229701, 'podcast-eurovision' : 227496, 'tienimi_morning' : 231758, 'il-podcast-del-post-su-sanremo' : 227196, 'tienimi-parigi' : 237733, 'altre-indagini':236670, 'globo' : 232180, 'ci-vuole-una-scienza' : 230388}
 static_podcast_info_dict = {
     'per-fare-il-post' :
     {'title': 'Per fare il post', 'author' : 'Redazione de Il Post', 'image':'https://www.ilpost.it/wp-content/uploads/2023/09/19/1695103517-copertina676x355-autori.jpg?x84864', 'description' : 'Un podcast per conoscere il giornale, e la sua redazione.'},
@@ -24,7 +24,11 @@ static_podcast_info_dict = {
     'tienimi-parigi':
     {'title': 'Tienimi Parigi', 'author' : 'Matteo Bordone', 'image': 'https://www.ilpost.it/wp-content/uploads/2024/07/17/1721194784-Tienimi_parigi.jpg', 'description': 'Tienimi Parigi è il podcast quotidiano di Matteo Bordone dedicato alle Olimpiadi di Parigi 2024: esce tutti i giorni, dal 26 luglio al 12 agosto'},
     'altre-indagini':
-    {'title': 'Altre Indagini', 'author' : 'Stefano Nazzi', 'image': 'https://www.ilpost.it/wp-content/uploads/2024/04/09/1712669037-altre-Indagini-logo-1.png', 'description': 'Le puntate speciali di Indagini che raccontano le grandi vicende della storia italiana, di Stefano Nazzi.'}
+    {'title': 'Altre Indagini', 'author' : 'Stefano Nazzi', 'image': 'https://www.ilpost.it/wp-content/uploads/2024/04/09/1712669037-altre-Indagini-logo-1.png', 'description': 'Le puntate speciali di Indagini che raccontano le grandi vicende della storia italiana, di Stefano Nazzi.'},
+    'globo':
+    {'title': 'Globo', 'author' : 'Eugenio Cau', 'image': 'https://www.ilpost.it/wp-content/uploads/2022/11/13/1668375619-globo_1x1.jpg', 'description': 'Un podcast del Post con un’intervista a settimana sulle cose del mondo. Tutti i mercoledì con Eugenio Cau.'},
+    'ci-vuole-una-scienza':
+    {'title': 'Ci vuole una scienza', 'author' : 'Emanuele Menietti, Beatrice Mautino', 'image': 'https://www.ilpost.it/wp-content/uploads/2022/04/CVUS-logo.png', 'description': 'E quindi proviamo a capire come funziona. Ogni venerdì, con Emanuele Menietti e Beatrice Mautino.'}
 }
 
 class ItalianParserInfo(parserinfo):
