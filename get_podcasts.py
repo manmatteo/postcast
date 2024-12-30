@@ -1,40 +1,40 @@
 import requests
 import argparse
+import json
 from bs4 import BeautifulSoup
 from bs4 import CData
 from dateutil.parser import parse, parserinfo
 
 base_url = 'https://www.ilpost.it/'
+
+
+def build_info_dicts(s):
+    podcast_info_dicts = {}
+    response = s.get('https://www.ilpost.it/podcasts/')
+    soup = BeautifulSoup(response.text, 'html.parser')
+    script = soup.find('script', {'id': '__NEXT_DATA__'})
+    data = script.string
+    data = json.loads(data)
+    for section in data['props']['pageProps']['pageData']['data']:
+        if section['key'] == 'all_podcasts' or section['key'] == 'archivio':
+            for podcast in  section['data']:
+                podcast = podcast['parent']
+                podcast_info_dicts[podcast['slug']] = {
+                    'title': podcast['title'],
+                    'author': podcast['author'],
+                    'id': podcast['id'],
+                    'access_level': podcast['access_level'],
+                    'image': podcast['image'],
+                    'description': podcast['description']
+                }
+    return podcast_info_dicts
+
 podcast_ids = {'per-fare-il-post' : 234755, 'morning' : 227474, 'tienimi-bordone' : 227193, 'politics' : 229701, 'podcast-eurovision' : 227496, 'tienimi_morning' : 231758, 'il-podcast-del-post-su-sanremo' : 227196, 'tienimi-parigi' : 237733, 'altre-indagini':236670, 'globo' : 232180, 'ci-vuole-una-scienza' : 230388}
-static_podcast_info_dict = {
-    'per-fare-il-post' :
-    {'title': 'Per fare il post', 'author' : 'Redazione de Il Post', 'image':'https://www.ilpost.it/wp-content/uploads/2023/09/19/1695103517-copertina676x355-autori.jpg?x84864', 'description' : 'Un podcast per conoscere il giornale, e la sua redazione.'},
-    'morning' :
-    {'title': 'Morning', 'author' : 'Francesco Costa', 'image': 'https://www.ilpost.it/wp-content/uploads/2021/05/evening-1.png', 'description': 'Comincia la giornata con la rassegna stampa di Francesco Costa.'},
-    'tienimi-bordone' :
-    {'title': 'Tienimi Bordone', 'author' : 'Matteo Bordone', 'image': 'https://www.ilpost.it/wp-content/uploads/2021/04/app-tb.jpg', 'description': 'Il podcast quotidiano di Matteo Bordone. Tutto quello che non sapevi di voler sapere.'},
-    'politics' :
-    {'title': 'Politics', 'author' : 'Marco Simoni, Chiara Albanese', 'image': 'https://www.ilpost.it/wp-content/uploads/2022/01/politics-1x1-1.jpg.webp', 'description': 'La politica italiana spiegata bene, ogni giovedì. Con Marco Simoni e Chiara Albanese.'},
-    'podcast-eurovision' :
-    {'title': 'Un podcast sull\'Eurovision', 'author' : 'Giulia Balducci, Matteo Bordone, Luca Misculin, Stefano Vizio', 'image': 'https://www.ilpost.it/wp-content/uploads/2023/05/05/1683279303-copertina500x500.jpg', 'description': 'Inesorabile. Con Matteo Bordone, Giulia Balducci, Stefano Vizio e Luca Misculin.'},
-    'tienimi_morning' :
-    {'title': 'Tienimi Morning', 'author' : 'Matteo Bordone e Francesco Costa', 'image': 'https://www.ilpost.it/wp-content/uploads/2022/09/25/1664102867-tm.png', 'description': 'Matteo Bordone e Francesco Costa, insieme, dal vivo.'},
-    'il-podcast-del-post-su-sanremo' :
-    {'title': 'Un podcast su Sanremo', 'author' : 'Giulia Balducci, Matteo Bordone, Luca Misculin, Stefano Vizio', 'image': 'https://www.ilpost.it/wp-content/uploads/2023/02/03/1675414490-copertina-podcast500x500.jpg', 'description': 'Immancabile. Con Matteo Bordone, Giulia Balducci, Stefano Vizio e Luca Misculin.'},
-    'tienimi-parigi':
-    {'title': 'Tienimi Parigi', 'author' : 'Matteo Bordone', 'image': 'https://www.ilpost.it/wp-content/uploads/2024/07/17/1721194784-Tienimi_parigi.jpg', 'description': 'Tienimi Parigi è il podcast quotidiano di Matteo Bordone dedicato alle Olimpiadi di Parigi 2024: esce tutti i giorni, dal 26 luglio al 12 agosto'},
-    'altre-indagini':
-    {'title': 'Altre Indagini', 'author' : 'Stefano Nazzi', 'image': 'https://www.ilpost.it/wp-content/uploads/2024/04/09/1712669037-altre-Indagini-logo-1.png', 'description': 'Le puntate speciali di Indagini che raccontano le grandi vicende della storia italiana, di Stefano Nazzi.'},
-    'globo':
-    {'title': 'Globo', 'author' : 'Eugenio Cau', 'image': 'https://www.ilpost.it/wp-content/uploads/2022/11/13/1668375619-globo_1x1.jpg', 'description': 'Un podcast del Post con un’intervista a settimana sulle cose del mondo. Tutti i mercoledì con Eugenio Cau.'},
-    'ci-vuole-una-scienza':
-    {'title': 'Ci vuole una scienza', 'author' : 'Emanuele Menietti, Beatrice Mautino', 'image': 'https://www.ilpost.it/wp-content/uploads/2022/04/CVUS-logo.png', 'description': 'E quindi proviamo a capire come funziona. Ogni venerdì, con Emanuele Menietti e Beatrice Mautino.'}
-}
 
 class ItalianParserInfo(parserinfo):
     MONTHS = [('Gen', 'January'), ('Feb', 'February'), ('Mar', 'March'), ('Apr', 'April'), ('Mag', 'May'), ('Giu', 'June'), ('Lug', 'July'), ('Ago', 'August'), ('Set', 'Sett', 'September'), ('Ott', 'October'), ('Nov', 'November'), ('Dic', 'December')]
 
-def build_feed(logged_session,podcast_name, data):
+def build_feed(logged_session, podcast_info_dicts, podcast_name, data):
     """
     data is a dict with keys msg, subscriber, userType, onlySubscriber, postcastList
     postcastList is a list of dict with dict_keys(['content', 'date', 'description', 'free', 'hash', 'id', 'image', 'milliseconds', 'minutes', 'object', 'old_podcast_id', 'old_timestamp', 'podcast', 'podcast_id', 'podcast_raw_url', 'range', 'timestamp', 'title', 'type', 'url']
@@ -45,7 +45,7 @@ def build_feed(logged_session,podcast_name, data):
         raise Exception('Ajax server answered' + data['msg'] + 'on podcast' + podcast_name)
     out_soup = BeautifulSoup(podcast_head, 'xml')
     # podcast_info_dict = data['postcastList'][0]['podcast'] #['author', 'chronological', 'count', 'cyclicality', 'description', 'free', 'gift', 'gift_all', 'id', 'image', 'imageweb', 'object', 'order', 'pushnotification', 'robot', 'title', 'type', 'url']
-    podcast_info_dict = static_podcast_info_dict[podcast_name]
+    podcast_info_dict = podcast_info_dicts[podcast_name]
     channel_tag = out_soup.rss.channel
     title_tag = out_soup.new_tag("title")
     title_tag.string = podcast_info_dict['title']
@@ -154,10 +154,11 @@ if __name__ == "__main__":
     password = args.password
 
     with requests.Session() as s :
+        podcast_info_dicts = build_info_dicts(s)
         logged_session = wplogin(s,username,password)
         target_podcasts = podcast_ids.keys() if args.download_all else args.podcast
         for current_podcast in target_podcasts:
             podcast_data = get_podcast_data(logged_session,current_podcast)
-            out_feed = build_feed(logged_session,current_podcast, podcast_data)
+            out_feed = build_feed(logged_session,podcast_info_dicts,current_podcast, podcast_data)
             with open(current_podcast + '.xml', 'w') as out_file:
                 out_file.write(out_feed.prettify())
