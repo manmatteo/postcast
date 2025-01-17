@@ -17,14 +17,16 @@ jobs:
           packages: python3-bs4 python3-dateutil
           version: 1.0
       - name: Get feeds
-        run: |
-          python3 get_podcasts.py --download-all ${{ secrets.USERNAME }} ${{ secrets.PASSWORD }}
-          mkdir feeds
-          mv *.xml feeds/
+        run: python3 get_podcasts.py -f feeds ${{ secrets.USERNAME }} ${{ secrets.PASSWORD }}
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: ./feeds
+      - name: Cache feeds
+        uses: actions/cache@v2
+        with:
+          path: feeds
+          key: feeds-${{ hashFiles('feeds/*') }}
   deploy:
     needs: build
     permissions:
