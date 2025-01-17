@@ -11,7 +11,7 @@ import os
 from logging import getLogger, basicConfig
 
 logger = getLogger(__name__)
-basicConfig(level='DEBUG')
+basicConfig(level='INFO')
 
 base_url = 'https://www.ilpost.it/'
 
