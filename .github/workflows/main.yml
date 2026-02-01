@@ -11,6 +11,14 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Restore cached feeds
+        id: cache-feeds-restore
+        uses: actions/cache/restore@v4
+        with:
+          path: feeds
+          key: feeds-${{ github.run_id }}
+          restore-keys: |
+            feeds-
       - name : Install dependencies
         uses: awalsh128/cache-apt-pkgs-action@latest
         with:
@@ -22,11 +30,12 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         with:
           path: ./feeds
-      - name: Cache feeds
-        uses: actions/cache@v4
+      - name: Save cached feeds
+        id: cache-feeds-save
+        uses: actions/cache/save@v4
         with:
           path: feeds
-          key: feeds-${{ hashFiles('feeds/*') }}
+          key: feeds-${{ github.run_id }}
   deploy:
     needs: build
     permissions:
