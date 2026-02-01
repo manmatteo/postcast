@@ -11,20 +11,51 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Restore cached feeds
+        id: cache-feeds-restore
+        uses: actions/cache/restore@v4
+        with:
+          path: feeds
+          key: feeds-${{ github.run_id }}
+          restore-keys: |
+            feeds-
       - name : Install dependencies
         uses: awalsh128/cache-apt-pkgs-action@latest
         with:
           packages: python3-bs4 python3-dateutil
           version: 1.0
       - name: Get feeds
+        run: python3 get_podcasts.py -f feeds ${{ secrets.USERNAME }} ${{ secrets.PASSWORD }}
+      - name: Generate HTML index
         run: |
-          python3 get_podcasts.py --download-all ${{ secrets.USERNAME }} ${{ secrets.PASSWORD }}
-          mkdir feeds
-          mv *.xml feeds/
+          python3 - <<'PY'
+          from pathlib import Path
+          feeds_dir = Path("feeds")
+          items = sorted(p for p in feeds_dir.glob("*.xml"))
+          lines = [
+              "<!doctype html>",
+              "<html lang='it'>",
+              "<head><meta charset='utf-8'><title>Postcast feeds</title></head>",
+              "<body>",
+              "<h1>Postcast feeds</h1>",
+              "<ul>",
+          ]
+          for p in items:
+              name = p.stem
+              lines.append(f"<li><a href='{p.name}'>{name}</a></li>")
+          lines += ["</ul>", "</body>", "</html>"]
+          (feeds_dir / "index.html").write_text("\n".join(lines), encoding="utf-8")
+          PY
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: ./feeds
+      - name: Save cached feeds
+        id: cache-feeds-save
+        uses: actions/cache/save@v4
+        with:
+          path: feeds
+          key: feeds-${{ github.run_id }}
   deploy:
     needs: build
     permissions:
