@@ -375,8 +375,17 @@ if __name__ == "__main__":
             podcast_info_dicts = info_dicts_from_podcast_page(podcast_page)
             if args.podcast != []:
                 podcast_info_dicts = {k:v for k,v in podcast_info_dicts.items() if k in args.podcast}
+            
+            if "audio-articoli" in podcast_info_dicts:
+                del podcast_info_dicts["audio-articoli"]
+                logger.info('Rimosso podcast "audio-articoli" dalla lista dei podcast da scaricare')
 
             logger.info(f"Podcast da scaricare: {podcast_info_dicts.keys()}")
+
+            episodes_by_slug: dict[str, list[PodcastPageItem]] = {}
+            for episode in podcast_page:
+                slug = episode['parent']['slug']
+                episodes_by_slug.setdefault(slug, []).append(episode)
 
             # Process each podcast
             for slug in podcast_info_dicts.keys():
@@ -384,47 +393,43 @@ if __name__ == "__main__":
                 try:
                     p.load_existing_feed(args.f)
                     logger.info(f'Existing feed found for podcast {slug}, checking for new episodes')
-                    # Login and get all episodes from API to check for missing ones
-                    s.wplogin(username, password)
-                    data = get_podcast_data(s, p)
-                    
-                    new_episodes_count = 0
-                    for json_episode in data['postcastList']:
-                        if p.has_episode(json_episode['id']):
+
+                    page_episodes = episodes_by_slug.get(slug, [])
+                    added_from_page = 0
+                    had_overlap = False
+
+                    # Fast path: use public podcast page (no login)
+                    for episode in page_episodes:
+                        if p.has_episode(episode['id']):
+                            had_overlap = True
                             continue
-                        
-                        # New episode found, add it
-                        episode_content = get_episode_content(s, json_episode['id'])
-                        if 'content_html' in episode_content:
-                            content_html: str | CData = CData(episode_content['content_html'])
-                        else:
-                            content_html = ""
-                            logger.info(f'No content_html in episode {json_episode["title"]} of podcast {slug}')
-                        
-                        if json_episode['podcast_raw_url'] == '':
-                            logger.warning(f'No podcast_raw_url in episode {json_episode["title"]} of podcast {slug}')
-                            continue
-                        
-                        # Normalize the URL (check if CDN URL works, fallback to ilpost.it if needed)
-                        normalized_url = normalize_podcast_url(json_episode['podcast_raw_url'], s)
-                        
-                        episode = Episode(title=json_episode['title'],
-                                        url=json_episode['url'],
-                                        date=parse_italian_date(json_episode['date']),
-                                        minutes=json_episode['minutes'],
-                                        content_html=content_html,
-                                        podcast_raw_url=normalized_url,
-                                        id=json_episode['id'],
-                                        podcast_id=json_episode['podcast_id'],
-                                        image=json_episode['image'])
-                        p.add_episode(episode)
-                        new_episodes_count += 1
-                    
-                    if new_episodes_count > 0:
-                        logger.info(f'Added {new_episodes_count} new episode(s) to podcast {slug}')
-                    else:
+                        content_html = CData(episode['content_html']) if episode['content_html'] else ""
+                        normalized_url = normalize_podcast_url(episode['episode_raw_url'], s)
+                        e = Episode(title=episode['title'],
+                                    url=episode['url'],
+                                    date=parse_italian_date(episode['date']),
+                                    minutes=episode['minutes'],
+                                    content_html=content_html,
+                                    podcast_raw_url=normalized_url,
+                                    id=episode['id'],
+                                    podcast_id=episode['parent']['id'],
+                                    image=episode['image'])
+                        p.add_episode(e)
+                        added_from_page += 1
+
+                    if added_from_page > 0:
+                        logger.info(f'Added {added_from_page} episode(s) from public page for podcast {slug}')
+
+                    # If there was no overlap, the local feed may be stale; backfill via API
+                    if page_episodes and not had_overlap:
+                        logger.info(f'No overlap with public page for podcast {slug}, backfilling via API')
+                        if not s.logged_in:
+                            s.wplogin(username, password)
+                        build_feed(s, p)
+
+                    if added_from_page == 0 and (not page_episodes or had_overlap):
                         logger.info(f'No new episodes for podcast {slug}')
-                        
+
                 except FileNotFoundError:
                     logger.info(f'No feed found for podcast {slug}, building new')
                     s.wplogin(username, password)
@@ -465,15 +470,3 @@ if __name__ == "__main__1":
             with open(cur_slug + '.xml', 'w') as out_file:
                 if p.feed is not None:
                     out_file.write(str(p.feed.prettify()))
-
-
-    # ## Create an opml file with all the podcasts
-    # opml_head = '<?xml version="1.0" encoding="UTF-8"?> <opml version="1.0"> <head> <title>Il Post Podcasts</title> </head> <body>'
-    # opml_tail = '</body> </opml>'
-    # out_soup = BeautifulSoup(opml_head, 'xml')
-    # for podcast in target_podcasts:
-    #     new_outline = out_soup.new_tag("outline", text=podcast, title=podcast_info_dicts[podcast]['title'], type="rss", xmlUrl=podcast + '.xml')
-    #     out_soup.body.append(new_outline)
-    # out_soup.body.append(opml_tail)
-    # with open('ilpost_podcasts.opml', 'w') as out_file:
-    # #     out_file.write(out_soup.prettify())
