@@ -65,6 +65,25 @@ class PodcastListData(TypedDict):
     postcastList: list[EpisodeData]
     msg: str
 
+def normalize_podcast_url(url: str, session:requests.Session) -> str:
+    """
+    If a static-prod.cdnilpost.com URL returns 404, replace with www.ilpost.it
+    """
+    if not url.startswith('https://static-prod.cdnilpost.com'):
+        return url
+    
+    try:
+        response = session.head(url, timeout=5, allow_redirects=True)
+        if response.status_code == 200:
+            return url
+        elif response.status_code == 404:
+            fixed_url = url.replace('https://static-prod.cdnilpost.com', 'https://www.ilpost.it')
+            logger.info(f'CDN URL returned 404, using ilpost.it instead: {fixed_url}')
+            return fixed_url
+    except Exception as e:
+        logger.warning(f'Error checking URL {url}: {e}')
+    return url
+
 def parse_italian_date(date_str: str) -> datetime:
     """Parse date strings with Italian month names (e.g., '31 gen 2026')"""
     months: dict[str, str] = {
@@ -265,12 +284,15 @@ def build_feed(logged_session: PostcastSession, podcast: Postcast) -> Postcast:
             logger.warning(f'No podcast_raw_url in episode {json_episode["title"]} of podcast {podcast.slug}')
             continue
 
+        # Normalize the URL (check if CDN URL works, fallback to ilpost.it if needed)
+        normalized_url = normalize_podcast_url(json_episode['podcast_raw_url'], logged_session)
+
         episode = Episode(title=json_episode['title'],
                           url=json_episode['url'],
                           date=parse_italian_date(json_episode['date']),
                           minutes=json_episode['minutes'],
                           content_html=content_html,
-                          podcast_raw_url=json_episode['podcast_raw_url'],
+                          podcast_raw_url=normalized_url,
                           id=json_episode['id'],
                           podcast_id=json_episode['podcast_id'],
                           image=json_episode['image'])
@@ -356,29 +378,56 @@ if __name__ == "__main__":
 
             logger.info(f"Podcast da scaricare: {podcast_info_dicts.keys()}")
 
-            for episode in podcast_page:
-                cur_slug = episode['parent']['slug']
-                if cur_slug not in podcast_info_dicts:
-                    continue
-                p = Postcast(cur_slug, podcast_info_dicts[cur_slug])
+            # Process each podcast
+            for slug in podcast_info_dicts.keys():
+                p = Postcast(slug, podcast_info_dicts[slug])
                 try:
                     p.load_existing_feed(args.f)
-                    if p.has_episode(episode['id']):
-                        logger.info(f'Episode {episode["title"]} of podcast {cur_slug} already in feed')
-                        continue
-                    e = Episode(title=episode['title'],
-                                url=episode['url'],
-                                date=parse_italian_date(episode['date']),
-                                minutes=episode['minutes'],
-                                content_html=episode['content_html'],
-                                podcast_raw_url=episode['episode_raw_url'],
-                                id=episode['id'],
-                                podcast_id=episode['parent']['id'],
-                                image=episode['image'])
-                    p.add_episode(e)
+                    logger.info(f'Existing feed found for podcast {slug}, checking for new episodes')
+                    # Login and get all episodes from API to check for missing ones
+                    s.wplogin(username, password)
+                    data = get_podcast_data(s, p)
+                    
+                    new_episodes_count = 0
+                    for json_episode in data['postcastList']:
+                        if p.has_episode(json_episode['id']):
+                            continue
+                        
+                        # New episode found, add it
+                        episode_content = get_episode_content(s, json_episode['id'])
+                        if 'content_html' in episode_content:
+                            content_html: str | CData = CData(episode_content['content_html'])
+                        else:
+                            content_html = ""
+                            logger.info(f'No content_html in episode {json_episode["title"]} of podcast {slug}')
+                        
+                        if json_episode['podcast_raw_url'] == '':
+                            logger.warning(f'No podcast_raw_url in episode {json_episode["title"]} of podcast {slug}')
+                            continue
+                        
+                        # Normalize the URL (check if CDN URL works, fallback to ilpost.it if needed)
+                        normalized_url = normalize_podcast_url(json_episode['podcast_raw_url'], s)
+                        
+                        episode = Episode(title=json_episode['title'],
+                                        url=json_episode['url'],
+                                        date=parse_italian_date(json_episode['date']),
+                                        minutes=json_episode['minutes'],
+                                        content_html=content_html,
+                                        podcast_raw_url=normalized_url,
+                                        id=json_episode['id'],
+                                        podcast_id=json_episode['podcast_id'],
+                                        image=json_episode['image'])
+                        p.add_episode(episode)
+                        new_episodes_count += 1
+                    
+                    if new_episodes_count > 0:
+                        logger.info(f'Added {new_episodes_count} new episode(s) to podcast {slug}')
+                    else:
+                        logger.info(f'No new episodes for podcast {slug}')
+                        
                 except FileNotFoundError:
-                    logger.info(f'No feed found for podcast {cur_slug}, building new')
-                    s.wplogin(username,password)
+                    logger.info(f'No feed found for podcast {slug}, building new')
+                    s.wplogin(username, password)
                     build_feed(s, p)
                 if not os.path.exists(args.f):
                     os.makedirs(args.f)
