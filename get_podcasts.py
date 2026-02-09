@@ -168,7 +168,6 @@ class Postcast:
 
     def initialize_feed(self) -> None:
         self.feed = BeautifulSoup("""
-                                  <?xml version="1.0" encoding="UTF-8"?>
                                   <rss xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd" version="2.0">
                                   <channel>
                                   <itunes:block>Yes</itunes:block>
@@ -405,7 +404,9 @@ if __name__ == "__main__":
                             continue
                         content_html = CData(episode['content_html']) if episode['content_html'] else ""
                         normalized_url = normalize_podcast_url(episode['episode_raw_url'], s)
-                        e = Episode(title=episode['title'],
+                        ## Episode title contains HTML-encoded characters, so we decode them
+                        decoded_title = BeautifulSoup(episode['title'], 'html.parser').text
+                        e = Episode(title=decoded_title,
                                     url=episode['url'],
                                     date=parse_italian_date(episode['date']),
                                     minutes=episode['minutes'],
