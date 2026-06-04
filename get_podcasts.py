@@ -245,7 +245,7 @@ def data_of_podcast_page(s: PostcastSession) -> list[PodcastPageItem]:
     if script is None or script.string is None:
         raise ValueError("Could not find podcast data on page")
     data: Any = json.loads(script.string)
-    sections: list[dict[str, Any]] = data['props']['pageProps']['pageData']['data']
+    sections: list[dict[str, Any]] = data['props']['pageProps']['data']['data']
     podcast_data_list: list[PodcastPageItem] = []
     for section in sections:
         if section['key'] == 'all_podcasts' or section['key'] == 'archivio':
