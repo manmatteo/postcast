@@ -267,33 +267,33 @@ def info_dicts_from_podcast_page(data: list[PodcastPageItem]) -> dict[str, Podca
     return podcast_info_dicts
 
 def build_feed(logged_session: PostcastSession, podcast: Postcast) -> Postcast:
-    if not logged_session.logged_in:
-        raise Exception("Sessione non loggata")
     if not podcast.is_initialized():
         podcast.initialize_feed()
+    print(f'Building feed for podcast {podcast.slug}')
     data = get_podcast_data(logged_session, podcast)
-    for json_episode in data['postcastList']:
-        episode_content = get_episode_content(logged_session, json_episode['id'])
-        if 'content_html' in episode_content:
-            content_html: str | CData = CData(episode_content['content_html'])
+    print(f'Got data')
+    for json_episode in data:
+        if 'content_html' in json_episode:
+            content_html: str | CData = CData(json_episode['content_html'])
         else:
             content_html = ""
             logger.info(f'No content_html in episode {json_episode["title"]} of podcast {podcast.slug}')
-        if json_episode['podcast_raw_url'] == '':
-            logger.warning(f'No podcast_raw_url in episode {json_episode["title"]} of podcast {podcast.slug}')
+        if json_episode['episode_raw_url'] == '':
+            logger.warning(f'No episode_raw_url in episode {json_episode["title"]} of podcast {podcast.slug}')
             continue
 
         # Normalize the URL (check if CDN URL works, fallback to ilpost.it if needed)
-        normalized_url = normalize_podcast_url(json_episode['podcast_raw_url'], logged_session)
+        # Shouldn't be needed anymore
+        # normalized_url = normalize_podcast_url(json_episode['episode_raw_url'], logged_session)
 
         episode = Episode(title=json_episode['title'],
                           url=json_episode['url'],
                           date=parse_italian_date(json_episode['date']),
                           minutes=json_episode['minutes'],
                           content_html=content_html,
-                          podcast_raw_url=normalized_url,
+                          podcast_raw_url=json_episode['episode_raw_url'],
                           id=json_episode['id'],
-                          podcast_id=json_episode['podcast_id'],
+                          podcast_id=json_episode['parent']['id'],
                           image=json_episode['image'])
                         #   type=json_episode['type'])
         podcast.add_episode(episode)
@@ -306,12 +306,10 @@ def build_feed(logged_session: PostcastSession, podcast: Postcast) -> Postcast:
         ## description is now in content_html of episode content
     return podcast
 
-def get_podcast_data(logged_session: PostcastSession, podcast: Postcast) -> PodcastListData:
-    if not logged_session.logged_in:
-        raise Exception("Sessione non loggata")
-    wp_ajax = base_url + 'wp-admin/admin-ajax.php'
+def get_podcast_data(session: PostcastSession, podcast: Postcast) -> PodcastListData:
+    api_url = f'https://api-prod.ilpost.it/podcast/v1/podcast/{podcast.slug}?&pg=1&hits=100'
     podcast_home = base_url + 'podcasts/' + podcast.slug
-    headers_ajax: dict[str, str] = {
+    headers_api: dict[str, str] = {
         'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/113.0',
         'Accept': 'application/json, text/javascript, */*; q=0.01',
         'Accept-Language': 'en-US,en;q=0.5',
@@ -326,11 +324,10 @@ def get_podcast_data(logged_session: PostcastSession, podcast: Postcast) -> Podc
         'Sec-Fetch-Site': 'same-origin',
         'TE': 'trailers'
     }
-    data_ajax: dict[str, str | int] = {'action': 'checkpodcast', 'post_id': 0, 'podcast_id': podcast.id}
-    resp = logged_session.post(wp_ajax, headers=headers_ajax, data=data_ajax)
+    resp = session.get(api_url, headers=headers_api)
+    if resp.status_code != 200:
+        raise Exception(f"API request failed with status code {resp.status_code} for podcast {podcast.slug}")
     data: PodcastListData = resp.json()['data']
-    if data['msg'] != 'OK':
-        raise Exception('Ajax server answered' + data['msg'] + 'on podcast' + podcast.slug)
     return data
 
 def get_episode_content(logged_session: PostcastSession, episode_id: int) -> EpisodeContent:
@@ -389,52 +386,7 @@ if __name__ == "__main__":
             # Process each podcast
             for slug in podcast_info_dicts.keys():
                 p = Postcast(slug, podcast_info_dicts[slug])
-                try:
-                    p.load_existing_feed(args.f)
-                    logger.info(f'Existing feed found for podcast {slug}, checking for new episodes')
-
-                    page_episodes = episodes_by_slug.get(slug, [])
-                    added_from_page = 0
-                    had_overlap = False
-
-                    # Fast path: use public podcast page (no login)
-                    for episode in page_episodes:
-                        if p.has_episode(episode['id']):
-                            had_overlap = True
-                            continue
-                        content_html = CData(episode['content_html']) if episode['content_html'] else ""
-                        normalized_url = normalize_podcast_url(episode['episode_raw_url'], s)
-                        ## Episode title contains HTML-encoded characters, so we decode them
-                        decoded_title = BeautifulSoup(episode['title'], 'html.parser').text
-                        e = Episode(title=decoded_title,
-                                    url=episode['url'],
-                                    date=parse_italian_date(episode['date']),
-                                    minutes=episode['minutes'],
-                                    content_html=content_html,
-                                    podcast_raw_url=normalized_url,
-                                    id=episode['id'],
-                                    podcast_id=episode['parent']['id'],
-                                    image=episode['image'])
-                        p.add_episode(e)
-                        added_from_page += 1
-
-                    if added_from_page > 0:
-                        logger.info(f'Added {added_from_page} episode(s) from public page for podcast {slug}')
-
-                    # If there was no overlap, the local feed may be stale; backfill via API
-                    if page_episodes and not had_overlap:
-                        logger.info(f'No overlap with public page for podcast {slug}, backfilling via API')
-                        if not s.logged_in:
-                            s.wplogin(username, password)
-                        build_feed(s, p)
-
-                    if added_from_page == 0 and (not page_episodes or had_overlap):
-                        logger.info(f'No new episodes for podcast {slug}')
-
-                except FileNotFoundError:
-                    logger.info(f'No feed found for podcast {slug}, building new')
-                    s.wplogin(username, password)
-                    build_feed(s, p)
+                build_feed(s, p)
                 if not os.path.exists(args.f):
                     os.makedirs(args.f)
                 with open(args.f + "/" + p.slug + '.xml', 'w') as out_file:
