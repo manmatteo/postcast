@@ -65,25 +65,6 @@ class PodcastListData(TypedDict):
     postcastList: list[EpisodeData]
     msg: str
 
-def normalize_podcast_url(url: str, session:requests.Session) -> str:
-    """
-    If a static-prod.cdnilpost.com URL returns 404, replace with www.ilpost.it
-    """
-    if not url.startswith('https://static-prod.cdnilpost.com'):
-        return url
-    
-    try:
-        response = session.head(url, timeout=5, allow_redirects=True)
-        if response.status_code == 200:
-            return url
-        elif response.status_code == 404:
-            fixed_url = url.replace('https://static-prod.cdnilpost.com', 'https://www.ilpost.it')
-            logger.info(f'CDN URL returned 404, using ilpost.it instead: {fixed_url}')
-            return fixed_url
-    except Exception as e:
-        logger.warning(f'Error checking URL {url}: {e}')
-    return url
-
 def parse_italian_date(date_str: str) -> datetime:
     """Parse date strings with Italian month names (e.g., '31 gen 2026')"""
     months: dict[str, str] = {
@@ -214,26 +195,7 @@ class Postcast:
         new_episode_tag = episode.get_tag()
         self.feed.channel.append(new_episode_tag)
 
-class PostcastSession(requests.Session):
-    logged_in: bool
-    
-    def __init__(self) -> None:
-        super().__init__()
-        self.logged_in = False
-        
-    def wplogin(self, username: str, password: str) -> None:
-        if username == "" or password == "":
-            raise Exception("Username e password sono necessari per scaricare i vecchi episodi")
-        login_url = base_url + 'wp-login.php'
-        headers_login: dict[str, str] = { 'Cookie':'wordpress_test_cookie=WP Cookie check' }
-        login_data: dict[str, str] = {
-            'log':username, 'pwd':password, 'wp-submit':'Log In',
-            'redirect_to':base_url, 'testcookie':'1'
-        }
-        self.post(login_url, headers=headers_login, data=login_data)
-        self.logged_in = True
-
-def data_of_podcast_page(s: PostcastSession) -> list[PodcastPageItem]:
+def data_of_podcast_page(s: requests.Session) -> list[PodcastPageItem]:
     """
     Get public data from the podcast page. Session doesn't need to be logged in.
     Returns a list containing one dict for each podcast in the sections
@@ -266,11 +228,11 @@ def info_dicts_from_podcast_page(data: list[PodcastPageItem]) -> dict[str, Podca
         }
     return podcast_info_dicts
 
-def build_feed(logged_session: PostcastSession, podcast: Postcast) -> Postcast:
+def build_feed(session: requests.Session, podcast: Postcast) -> Postcast:
     if not podcast.is_initialized():
         podcast.initialize_feed()
     logger.info(f'Building feed for podcast {podcast.slug}')
-    data = get_podcast_data(logged_session, podcast)
+    data = get_podcast_data(session, podcast)
     for json_episode in data:
         if 'content_html' in json_episode:
             content_html: str | CData = CData(json_episode['content_html'])
@@ -296,16 +258,9 @@ def build_feed(logged_session: PostcastSession, podcast: Postcast) -> Postcast:
                           image=json_episode['image'])
                         #   type=json_episode['type'])
         podcast.add_episode(episode)
-
-        # Data disappeared from api answer
-        # new_episode_description_tag = out_soup.new_tag("description")
-        # desc_data = CData(episode['content'])
-        # new_episode_description_tag.string = desc_data
-        # new_episode_tag.append(new_episode_description_tag)
-        ## description is now in content_html of episode content
     return podcast
 
-def get_podcast_data(session: PostcastSession, podcast: Postcast) -> PodcastListData:
+def get_podcast_data(session: requests.Session, podcast: Postcast) -> PodcastListData:
     api_url = f'https://api-prod.ilpost.it/podcast/v1/podcast/{podcast.slug}?&pg=1&hits=100'
     podcast_home = base_url + 'podcasts/' + podcast.slug
     headers_api: dict[str, str] = {
@@ -329,29 +284,6 @@ def get_podcast_data(session: PostcastSession, podcast: Postcast) -> PodcastList
     data: PodcastListData = resp.json()['data']
     return data
 
-def get_episode_content(logged_session: PostcastSession, episode_id: int) -> EpisodeContent:
-    if not logged_session.logged_in:
-        raise Exception("Sessione non loggata")
-    api_base_url = 'https://api-prod.ilpost.it/content/v1/contents/the_content?id='
-    episode_url = api_base_url + str(episode_id)
-    headers: dict[str, str] = {
-        'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:131.0) Gecko/20100101 Firefox/131.0',
-        'Accept': '*/*',
-        'Accept-Language': 'it-IT,it;q=0.8,en-US;q=0.5,en;q=0.3',
-        'Accept-Encoding': 'gzip, deflate, br, zstd',
-        'Referer': 'https://www.ilpost.it/',
-        'Content-Type': 'application/json',
-        'apikey': 'r309t30ti309ghj3g3tu39t8390t380',
-        'Origin': 'https://www.ilpost.it',
-        'DNT': '1',
-        'Connection': 'keep-alive',
-    }
-    resp: Any = logged_session.get(episode_url, headers=headers).json()
-    if 'data' not in resp or 'the_content' not in resp['data']:
-        logger.warning(f'No content for episode {episode_id}')
-        return {}
-    return resp['data']['the_content']['data']
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Genera un feed RSS per gli episodi più recenti dei podcast de Il Post")
     parser.add_argument("-f", help="Cartella in cui salvare i file", default=".")
@@ -360,7 +292,7 @@ if __name__ == "__main__":
     args=parser.parse_args()
 
     try:
-        with PostcastSession() as s :
+        with requests.Session() as s :
             podcast_page = data_of_podcast_page(s)
             podcast_info_dicts = info_dicts_from_podcast_page(podcast_page)
             if args.podcast != []:
@@ -371,11 +303,6 @@ if __name__ == "__main__":
                 logger.info('Rimosso podcast "audio-articoli" dalla lista dei podcast da scaricare')
 
             logger.info(f"Podcast da scaricare: {podcast_info_dicts.keys()}")
-
-            episodes_by_slug: dict[str, list[PodcastPageItem]] = {}
-            for episode in podcast_page:
-                slug = episode['parent']['slug']
-                episodes_by_slug.setdefault(slug, []).append(episode)
 
             # Process each podcast
             for slug in podcast_info_dicts.keys():
@@ -388,19 +315,3 @@ if __name__ == "__main__":
                         out_file.write(str(p.feed.prettify()))
     except Exception as e:
         logger.error(f"Errore: {e}")
-
-if __name__ == "__main__1":
-    with PostcastSession() as s:
-        podcast_page = data_of_podcast_page(s)
-        podcast_info_dicts = info_dicts_from_podcast_page(podcast_page)
-        for episode in podcast_page:
-            cur_slug = episode['parent']['slug']
-            p = Postcast(cur_slug, podcast_info_dicts[cur_slug])
-            try:
-                p.load_existing_feed()
-            except FileNotFoundError:
-                logger.info(f'No feed found for podcast {cur_slug}, building new')
-                build_feed(s, p)
-            with open(cur_slug + '.xml', 'w') as out_file:
-                if p.feed is not None:
-                    out_file.write(str(p.feed.prettify()))
