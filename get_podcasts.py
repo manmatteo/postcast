@@ -269,9 +269,8 @@ def info_dicts_from_podcast_page(data: list[PodcastPageItem]) -> dict[str, Podca
 def build_feed(logged_session: PostcastSession, podcast: Postcast) -> Postcast:
     if not podcast.is_initialized():
         podcast.initialize_feed()
-    print(f'Building feed for podcast {podcast.slug}')
+    logger.info(f'Building feed for podcast {podcast.slug}')
     data = get_podcast_data(logged_session, podcast)
-    print(f'Got data')
     for json_episode in data:
         if 'content_html' in json_episode:
             content_html: str | CData = CData(json_episode['content_html'])
@@ -355,15 +354,10 @@ def get_episode_content(logged_session: PostcastSession, episode_id: int) -> Epi
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Genera un feed RSS per gli episodi più recenti dei podcast de Il Post")
-    parser.add_argument("user", help="Nome utente per il login (necessario per le vecchie puntate)", default="")
-    parser.add_argument("password", help="Password per il login (necessario per le vecchie puntate)", default="")
     parser.add_argument("-f", help="Cartella in cui salvare i file", default=".")
     parser.add_argument("--podcast", nargs='+', default = [])
     parser.add_argument("--download-all") # This actually does nothing. Keeping it for compatibility
     args=parser.parse_args()
-    
-    username = args.user
-    password = args.password
 
     try:
         with PostcastSession() as s :
@@ -407,19 +401,6 @@ if __name__ == "__main__1":
             except FileNotFoundError:
                 logger.info(f'No feed found for podcast {cur_slug}, building new')
                 build_feed(s, p)
-            if p.has_episode(episode['id']):
-                logger.info(f'Episode {episode["title"]} of podcast {cur_slug} already in feed')
-                continue
-            e = Episode(title=episode['title'],
-                        url=episode['url'],
-                        date=parse_italian_date(episode['date']),
-                        minutes=episode['minutes'],
-                        content_html=episode['content_html'],
-                        podcast_raw_url=episode['episode_raw_url'],
-                        id=episode['id'],
-                        podcast_id=episode['parent']['id'],
-                        image=episode['image'])
-            p.add_episode(e)
             with open(cur_slug + '.xml', 'w') as out_file:
                 if p.feed is not None:
                     out_file.write(str(p.feed.prettify()))

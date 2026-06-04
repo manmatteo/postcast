@@ -25,7 +25,7 @@ jobs:
           packages: python3-bs4 python3-dateutil
           version: 1.0
       - name: Get feeds
-        run: python3 get_podcasts.py -f feeds ${{ secrets.USERNAME }} ${{ secrets.PASSWORD }}
+        run: python3 get_podcasts.py -f feeds
       - name: Generate HTML index
         run: |
           python3 - <<'PY'
