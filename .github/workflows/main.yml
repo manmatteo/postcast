@@ -52,7 +52,7 @@ jobs:
           path: ./feeds
       - name: Save cached feeds
         id: cache-feeds-save
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: feeds
           key: feeds-${{ github.run_id }}
