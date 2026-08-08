@@ -11,6 +11,7 @@ from datetime import datetime
 from email.utils import format_datetime
 import dataclasses
 import os
+from concurrent.futures import ThreadPoolExecutor
 from logging import getLogger, basicConfig
 
 logger = getLogger(__name__)
@@ -290,28 +291,36 @@ if __name__ == "__main__":
     parser.add_argument("--podcast", nargs='+', default = [])
     parser.add_argument("--download-all") # This actually does nothing. Keeping it for compatibility
     args=parser.parse_args()
-
     try:
-        with requests.Session() as s :
+        with requests.Session() as s:
             podcast_page = data_of_podcast_page(s)
             podcast_info_dicts = info_dicts_from_podcast_page(podcast_page)
-            if args.podcast != []:
-                podcast_info_dicts = {k:v for k,v in podcast_info_dicts.items() if k in args.podcast}
-            
-            if "audio-articoli" in podcast_info_dicts:
-                del podcast_info_dicts["audio-articoli"]
-                logger.info('Rimosso podcast "audio-articoli" dalla lista dei podcast da scaricare')
 
-            logger.info(f"Podcast da scaricare: {podcast_info_dicts.keys()}")
+        if args.podcast:
+            podcast_info_dicts = {k: v for k, v in podcast_info_dicts.items() if k in args.podcast}
 
-            # Process each podcast
-            for slug in podcast_info_dicts.keys():
-                p = Postcast(slug, podcast_info_dicts[slug])
-                build_feed(s, p)
-                if not os.path.exists(args.f):
-                    os.makedirs(args.f)
-                with open(args.f + "/" + p.slug + '.xml', 'w') as out_file:
-                    if p.feed is not None:
-                        out_file.write(str(p.feed.prettify()))
+        if "audio-articoli" in podcast_info_dicts:
+            del podcast_info_dicts["audio-articoli"]
+            logger.info('Rimosso podcast "audio-articoli" dalla lista dei podcast da scaricare')
+
+        logger.info(f"Podcast da scaricare: {list(podcast_info_dicts.keys())}")
+
+        if not os.path.exists(args.f):
+            os.makedirs(args.f, exist_ok=True)
+
+        def download_podcast(item):
+            slug, info = item
+            p = Postcast(slug, info)
+            with requests.Session() as thread_session:
+                build_feed(thread_session, p)
+
+            if p.feed is not None:
+                file_path = os.path.join(args.f, f"{p.slug}.xml")
+                with open(file_path, 'w') as out_file:
+                    out_file.write(str(p.feed.prettify()))
+
+        with ThreadPoolExecutor(max_workers=7) as executor:
+            executor.map(download_podcast, podcast_info_dicts.items())
+
     except Exception as e:
-        logger.error(f"Errore: {e}")
+        logger.critical(f"Errore: {e}")
