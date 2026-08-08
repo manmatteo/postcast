@@ -1,2 +1,5 @@
 *.xml
 .vscode
+shell.nix
+.envrc
+.direnv/*

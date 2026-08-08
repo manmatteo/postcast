@@ -23,7 +23,7 @@ class PodcastInfoDict(TypedDict):
     title: str
     author: str
     id: int
-    access_level: int
+    access_level: str
     image: str
     description: str
 
@@ -39,25 +39,14 @@ class EpisodeData(TypedDict):
     podcast_id: int
     image: str
 
-class PodcastParent(TypedDict):
+class PodcastPageItem(TypedDict):
     slug: str
     title: str
     author: str
     id: int
-    access_level: int
+    accessLevel: str
     image: str
     description: str
-
-class PodcastPageItem(TypedDict):
-    parent: PodcastParent
-    title: str
-    url: str
-    date: str
-    minutes: int
-    content_html: str
-    episode_raw_url: str
-    id: int
-    image: str
 
 class EpisodeContent(TypedDict, total=False):
     content_html: str
@@ -125,7 +114,7 @@ class Postcast:
     title: str
     author: str
     id: int
-    access_level: int
+    access_level: str
     image: str
     description: str
     feed: Optional[BeautifulSoup]
@@ -211,19 +200,18 @@ def data_of_podcast_page(s: requests.Session) -> list[PodcastPageItem]:
     sections: list[dict[str, Any]] = data['props']['pageProps']['data']['data']
     podcast_data_list: list[PodcastPageItem] = []
     for section in sections:
-        if section['key'] == 'all_podcasts' or section['key'] == 'archivio':
+        if section['key'] == 'all_podcasts' or section['key'] == 'archived_podcasts':
             podcast_data_list.extend(section['data'])
     return podcast_data_list
 
 def info_dicts_from_podcast_page(data: list[PodcastPageItem]) -> dict[str, PodcastInfoDict]:
     podcast_info_dicts: dict[str, PodcastInfoDict] = {}
-    for podcast_item in data:
-        podcast = podcast_item['parent']
+    for podcast in data:
         podcast_info_dicts[podcast['slug']] = {
             'title': podcast['title'],
             'author': podcast['author'],
             'id': podcast['id'],
-            'access_level': podcast['access_level'],
+            'access_level': podcast['accessLevel'],
             'image': podcast['image'],
             'description': podcast['description']
         }
