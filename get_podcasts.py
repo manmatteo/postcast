@@ -1,7 +1,7 @@
 import requests
 import argparse
-import json
-from typing import TypedDict, NotRequired, Optional, Any
+import sys
+from typing import TypedDict, NotRequired, Optional
 from bs4 import BeautifulSoup
 from bs4 import CData
 from bs4.element import Tag
@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from email.utils import format_datetime
 import dataclasses
 import os
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from logging import getLogger, basicConfig
 
 logger = getLogger(__name__)
@@ -44,7 +44,7 @@ class PodcastPageItem(TypedDict):
     title: str
     author: str
     id: int
-    accessLevel: str
+    access_level: str
     image: str
     description: str
 
@@ -162,24 +162,14 @@ class Postcast:
         new_episode_tag = episode.get_tag()
         self.feed.channel.append(new_episode_tag)
 
-def data_of_podcast_page(s: requests.Session) -> list[PodcastPageItem]:
+def fetch_podcast_catalog(s: requests.Session) -> list[PodcastPageItem]:
     """
-    Get public data from the podcast page. Session doesn't need to be logged in.
-    Returns a list containing one dict for each podcast in the sections
-    `all_podcasts` and `archived_podcasts`.
+    Get the list of all available podcasts. Session doesn't need to be logged in.
     """
-    response = s.get('https://www.ilpost.it/podcasts/')
-    soup = BeautifulSoup(response.text, 'html.parser')
-    script = soup.find('script', {'id': '__NEXT_DATA__'})
-    if script is None or script.string is None:
-        raise ValueError("Could not find podcast data on page")
-    data: Any = json.loads(script.string)
-    sections: list[dict[str, Any]] = data['props']['pageProps']['data']['data']
-    podcast_data_list: list[PodcastPageItem] = []
-    for section in sections:
-        if section['key'] == 'all_podcasts' or section['key'] == 'archived_podcasts':
-            podcast_data_list.extend(section['data'])
-    return podcast_data_list
+    resp = s.get('https://api-prod.ilpost.it/podcast/v1/podcast', params={'pg': 1, 'hits': 200})
+    if resp.status_code != 200:
+        raise Exception(f"API request failed with status code {resp.status_code} for podcast catalog")
+    return resp.json()['data']
 
 def info_dicts_from_podcast_page(data: list[PodcastPageItem]) -> dict[str, PodcastInfoDict]:
     podcast_info_dicts: dict[str, PodcastInfoDict] = {}
@@ -188,7 +178,7 @@ def info_dicts_from_podcast_page(data: list[PodcastPageItem]) -> dict[str, Podca
             'title': podcast['title'],
             'author': podcast['author'],
             'id': podcast['id'],
-            'access_level': podcast['accessLevel'],
+            'access_level': podcast['access_level'],
             'image': podcast['image'],
             'description': podcast['description']
         }
@@ -252,7 +242,7 @@ if __name__ == "__main__":
     args=parser.parse_args()
     try:
         with requests.Session() as s:
-            podcast_page = data_of_podcast_page(s)
+            podcast_page = fetch_podcast_catalog(s)
             podcast_info_dicts = info_dicts_from_podcast_page(podcast_page)
 
         if args.podcast:
