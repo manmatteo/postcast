@@ -22,7 +22,7 @@ jobs:
       - name : Install dependencies
         uses: awalsh128/cache-apt-pkgs-action@latest
         with:
-          packages: python3-bs4 python3-dateutil
+          packages: python3-bs4
           version: 1.0
       - name: Get feeds
         run: python3 get_podcasts.py -f feeds

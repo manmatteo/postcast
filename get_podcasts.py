@@ -1,13 +1,11 @@
 import requests
 import argparse
 import json
-import re
-from typing import TypedDict, Optional, Any
+from typing import TypedDict, NotRequired, Optional, Any
 from bs4 import BeautifulSoup
 from bs4 import CData
 from bs4.element import Tag
-from dateutil.parser import parse, parserinfo
-from datetime import datetime
+from datetime import datetime, timezone
 from email.utils import format_datetime
 import dataclasses
 import os
@@ -27,17 +25,19 @@ class PodcastInfoDict(TypedDict):
     image: str
     description: str
 
+class EpisodeParent(TypedDict):
+    id: int
+
 class EpisodeData(TypedDict):
     title: str
     url: str
-    date: str
+    timestamp: int
     minutes: int
-    content_html: str
-    podcast_raw_url: str
     episode_raw_url: str
     id: int
-    podcast_id: int
     image: str
+    parent: EpisodeParent
+    content_html: NotRequired[str]
 
 class PodcastPageItem(TypedDict):
     slug: str
@@ -47,29 +47,6 @@ class PodcastPageItem(TypedDict):
     accessLevel: str
     image: str
     description: str
-
-class EpisodeContent(TypedDict, total=False):
-    content_html: str
-
-class PodcastListData(TypedDict):
-    postcastList: list[EpisodeData]
-    msg: str
-
-def parse_italian_date(date_str: str) -> datetime:
-    """Parse date strings with Italian month names (e.g., '31 gen 2026')"""
-    months: dict[str, str] = {
-        'gen': 'Jan', 'feb': 'Feb', 'mar': 'Mar', 'apr': 'Apr', 'mag': 'May', 'giu': 'Jun',
-        'lug': 'Jul', 'ago': 'Aug', 'set': 'Sep', 'ott': 'Oct', 'nov': 'Nov', 'dic': 'Dec'
-    }
-    match = re.search(r'\b([a-z]{3})\b', date_str, re.IGNORECASE)
-    if match:
-        ita = match.group(1).lower()
-        if ita in months:
-            date_str = re.sub(r'\b' + ita + r'\b', months[ita], date_str, flags=re.IGNORECASE)
-    result = parse(date_str)
-    if isinstance(result, datetime):
-        return result
-    raise ValueError(f"Could not parse date: {date_str}")
 
 @dataclasses.dataclass
 class Episode:
@@ -189,7 +166,7 @@ def data_of_podcast_page(s: requests.Session) -> list[PodcastPageItem]:
     """
     Get public data from the podcast page. Session doesn't need to be logged in.
     Returns a list containing one dict for each podcast in the sections
-    `all_podcasts` and `archivio`.
+    `all_podcasts` and `archived_podcasts`.
     """
     response = s.get('https://www.ilpost.it/podcasts/')
     soup = BeautifulSoup(response.text, 'html.parser')
@@ -232,24 +209,19 @@ def build_feed(session: requests.Session, podcast: Postcast) -> Postcast:
             logger.warning(f'No episode_raw_url in episode {json_episode["title"]} of podcast {podcast.slug}')
             continue
 
-        # Normalize the URL (check if CDN URL works, fallback to ilpost.it if needed)
-        # Shouldn't be needed anymore
-        # normalized_url = normalize_podcast_url(json_episode['episode_raw_url'], logged_session)
-
         episode = Episode(title=json_episode['title'],
                           url=json_episode['url'],
-                          date=parse_italian_date(json_episode['date']),
+                          date=datetime.fromtimestamp(json_episode['timestamp'], tz=timezone.utc),
                           minutes=json_episode['minutes'],
                           content_html=content_html,
                           podcast_raw_url=json_episode['episode_raw_url'],
                           id=json_episode['id'],
                           podcast_id=json_episode['parent']['id'],
                           image=json_episode['image'])
-                        #   type=json_episode['type'])
         podcast.add_episode(episode)
     return podcast
 
-def get_podcast_data(session: requests.Session, podcast: Postcast) -> PodcastListData:
+def get_podcast_data(session: requests.Session, podcast: Postcast) -> list[EpisodeData]:
     api_url = f'https://api-prod.ilpost.it/podcast/v1/podcast/{podcast.slug}?&pg=1&hits=100'
     podcast_home = base_url + 'podcasts/' + podcast.slug
     headers_api: dict[str, str] = {
@@ -270,14 +242,13 @@ def get_podcast_data(session: requests.Session, podcast: Postcast) -> PodcastLis
     resp = session.get(api_url, headers=headers_api)
     if resp.status_code != 200:
         raise Exception(f"API request failed with status code {resp.status_code} for podcast {podcast.slug}")
-    data: PodcastListData = resp.json()['data']
+    data: list[EpisodeData] = resp.json()['data']
     return data
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Genera un feed RSS per gli episodi più recenti dei podcast de Il Post")
     parser.add_argument("-f", help="Cartella in cui salvare i file", default=".")
     parser.add_argument("--podcast", nargs='+', default = [])
-    parser.add_argument("--download-all") # This actually does nothing. Keeping it for compatibility
     args=parser.parse_args()
     try:
         with requests.Session() as s:
